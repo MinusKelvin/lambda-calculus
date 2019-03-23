@@ -4,9 +4,9 @@ pub fn evaluate(mut expr: LambdaTerm) -> LambdaTerm {
     println!("  < {}", expr);
     loop {
         match beta_reduce(expr) {
-            Reduction::Preformed(e) => {
+            Reduction::Preformed(transformation, e) => {
                 expr = e;
-                println!("β | {}", expr);
+                println!("{} | {}", transformation, expr);
             }
             Reduction::NotPreformed(e) => {
                 return e
@@ -19,17 +19,19 @@ fn beta_reduce(expr: LambdaTerm) -> Reduction {
     match expr {
         LambdaTerm::Apply(left, right) => {
             let left = match beta_reduce(*left) {
-                Reduction::Preformed(expr) => return Reduction::Preformed(
+                Reduction::Preformed(transformation, expr) => return Reduction::Preformed(
+                    transformation,
                     LambdaTerm::Apply(Box::new(expr), right)
                 ),
                 Reduction::NotPreformed(expr) => expr
             };
             if let LambdaTerm::Abstract(symbol, body) = left {
-                Reduction::Preformed(replace(&symbol, *body, *right))
+                Reduction::Preformed(Transformation::BetaReduction, replace(&symbol, *body, *right))
             } else {
                 let left = Box::new(left);
                 match beta_reduce(*right) {
-                    Reduction::Preformed(expr) => Reduction::Preformed(
+                    Reduction::Preformed(transformation, expr) => Reduction::Preformed(
+                        transformation,
                         LambdaTerm::Apply(left, Box::new(expr))
                     ),
                     Reduction::NotPreformed(expr) => Reduction::NotPreformed(
@@ -40,7 +42,8 @@ fn beta_reduce(expr: LambdaTerm) -> Reduction {
         }
         LambdaTerm::Abstract(s, body) => {
             match beta_reduce(*body) {
-                Reduction::Preformed(expr) => Reduction::Preformed(
+                Reduction::Preformed(transformation, expr) => Reduction::Preformed(
+                    transformation,
                     LambdaTerm::Abstract(s, Box::new(expr))
                 ),
                 Reduction::NotPreformed(expr) => Reduction::NotPreformed(
@@ -68,6 +71,20 @@ fn replace(symbol: &str, body: LambdaTerm, with: LambdaTerm) -> LambdaTerm {
 }
 
 enum Reduction {
-    Preformed(LambdaTerm),
+    Preformed(Transformation, LambdaTerm),
     NotPreformed(LambdaTerm)
+}
+
+enum Transformation {
+    BetaReduction,
+    AlphaConversion
+}
+
+impl std::fmt::Display for Transformation {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Transformation::AlphaConversion => write!(f, "α"),
+            Transformation::BetaReduction   => write!(f, "β"),
+        }
+    }
 }
