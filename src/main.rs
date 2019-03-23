@@ -10,25 +10,23 @@ fn main() {
     reader.set_auto_add_history(true);
     let mut bindings = HashMap::new();
 
-    loop { match reader.readline("λ : ") {
+    loop { match reader.readline("λ < ") {
         Ok(line) => {
             match parse::statement(&line, &mut bindings) {
                 Ok(parse::Action::Evaluate(expr)) => {
-                    let expr = evaluate::evaluate(expr);
-                    println!("  > {}", print::pretty_printer(expr, &bindings));
+                    eval(expr, &mut reader, &bindings);
                 }
-                Ok(parse::Action::Bind(ident, expr)) => {
-                    let expr = evaluate::evaluate(expr);
-                    println!("  > {}", print::pretty_printer(expr.clone(), &bindings));
-                    println!("Bound to {}", ident);
-                    bindings.insert(ident, expr);
-                }
+                Ok(parse::Action::Bind(ident, expr)) =>
+                    if let Some(expr) = eval(expr, &mut reader, &bindings) {
+                        println!("Bound to {}", ident);
+                        bindings.insert(ident, expr);
+                    }
                 Ok(parse::Action::TestAlphaEquivalence(left, right)) => {
-                    let left = evaluate::evaluate(left);
-                    println!("  > {}", print::pretty_printer(left.clone(), &bindings));
-                    let right = evaluate::evaluate(right);
-                    println!("  > {}", print::pretty_printer(right.clone(), &bindings));
-                    println!("α > {}", left == right);
+                    let left = eval(left, &mut reader, &bindings);
+                    let right = eval(right, &mut reader, &bindings);
+                    if let (Some(left), Some(right)) = (left, right) {
+                        println!("α > {}", left == right);
+                    }
                 }
                 Ok(parse::Action::DoNothing) => {}
                 Err(msg) => println!("Error: {}", msg)
@@ -41,6 +39,32 @@ fn main() {
             break
         }
     }}
+}
+
+fn eval(mut expr: LambdaTerm, reader: &mut Editor<()>, bindings: &Bindings) -> Option<LambdaTerm> {
+    loop {
+        match evaluate::evaluate(expr) {
+            evaluate::Evaluation::BetaNormal(expr) => {
+                println!("  > {}", print::pretty_printer(expr.clone(), bindings));
+                return Some(expr)
+            }
+            evaluate::Evaluation::Unfinished(e) => {
+                println!("This computation has not terminated after 100,000 steps.");
+                match reader.readline("Continue? ") {
+                    Err(ReadlineError::Interrupted) => return None,
+                    Err(ReadlineError::Eof) => return None,
+                    Err(e @ _) => {
+                        println!("An error occured while reading input: {}", e);
+                        return None
+                    }
+                    Ok(line) => match &*line.to_lowercase() {
+                        "yes" | "y" => expr = e,
+                        _ => return None
+                    }
+                }
+            }
+        }
+    }
 }
 
 type Bindings = HashMap<String, LambdaTerm>;
