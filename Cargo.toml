@@ -1,0 +1,8 @@
+[package]
+name = "lambda-calculus"
+version = "0.1.0"
+authors = ["MinusKelvin <mark.carlson@minuskelvin.net>"]
+edition = "2018"
+
+[dependencies]
+rustyline = "3"
