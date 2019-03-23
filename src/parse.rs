@@ -10,10 +10,17 @@ pub fn statement(line: &str, bindings: &Bindings) -> Result<Action, &'static str
         },
         Some(_) => {
             let expr = parse_expression(&mut lexer, bindings, &mut Vec::new())?;
-            if lexer.next().is_some() {
-                Err("Unexpected tokens after expression")
-            } else {
-                Ok(Action::Evaluate(expr))
+            match lexer.next() {
+                Some(Token::Equals) => {
+                    let other = parse_expression(&mut lexer, bindings, &mut Vec::new())?;
+                    if lexer.next().is_some() {
+                        Err("Expected end of input.")
+                    } else {
+                        Ok(Action::TestAlphaEquivalence(expr, other))
+                    }
+                },
+                Some(_) => Err("Expected '=' or end of input."),
+                None => Ok(Action::Evaluate(expr))
             }
         }
     }
@@ -102,6 +109,7 @@ fn parse_expression(
 
 pub enum Action {
     Bind(String, LambdaTerm),
+    TestAlphaEquivalence(LambdaTerm, LambdaTerm),
     Evaluate(LambdaTerm),
     DoNothing
 }

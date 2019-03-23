@@ -20,9 +20,16 @@ fn main() {
                 Ok(parse::Action::Bind(ident, expr)) => {
                     let expr = evaluate::evaluate(expr);
                     println!("  > {}", print::pretty_printer(expr.clone(), &bindings));
+                    println!("Bound to {}", ident);
                     bindings.insert(ident, expr);
-                    println!("Bound.")
-                },
+                }
+                Ok(parse::Action::TestAlphaEquivalence(left, right)) => {
+                    let left = evaluate::evaluate(left);
+                    println!("  > {}", print::pretty_printer(left.clone(), &bindings));
+                    let right = evaluate::evaluate(right);
+                    println!("  > {}", print::pretty_printer(right.clone(), &bindings));
+                    println!("α > {}", left == right);
+                }
                 Ok(parse::Action::DoNothing) => {}
                 Err(msg) => println!("Error: {}", msg)
             }
